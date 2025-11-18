@@ -1,6 +1,7 @@
 import os
 import locale
 import codecs
+import platform
 import re
 import string
 import random
@@ -62,6 +63,14 @@ def evalString(string: str):
         return string
 
 #############################################################################################################
+
+def removeLF(
+    string: str,
+    removeAll: bool = False,
+):
+    lfChar = r'\r\n' if platform.system() == 'Windows' else r'\n'
+    return string.strip(lfChar) if removeAll else re.sub(lfChar, '', string)
+
 
 def rawString(
     text: str

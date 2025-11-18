@@ -70,23 +70,20 @@ class requestManager(Enum):
     Get = 1
     #Head = 2
 
-    def request(self,
-        protocol: str = "http",
-        host: str = "127.0.0.1",
-        port: int = 8080,
-        pathParams: Union[str, list[str], None] = None,
-        queryParams: Union[str, list[str], None] = None,
-        headers: Optional[dict] = None,
-        data: Any = None,
-        stream: bool = False,
+    def _request(self,
+        reqMethod: str,
+        protocol: str,
+        host: str,
+        port: int,
+        pathParams: Union[str, list[str], None],
+        queryParams: Union[str, list[str], None],
+        headers: Optional[dict],
+        data: Any,
+        stream: bool,
         **kwargs
     ):
         pathParams = "/".join([str(pathParam) for pathParam in toIterable(pathParams)] if pathParams else [])
         queryParams = "&".join([str(queryParam) for queryParam in toIterable(queryParams)] if queryParams else [])
-        if self == self.Post:
-            reqMethod = 'POST'
-        if self == self.Get:
-            reqMethod = 'GET'
         response = requests.request(
             method = reqMethod,
             url = f"{protocol}://{host}:{port}"
@@ -99,6 +96,47 @@ class requestManager(Enum):
         )
         #assert response.status_code == 200
         return response
+
+    def request(self,
+        protocol: str = "http",
+        host: str = "127.0.0.1",
+        port: int = 8080,
+        pathParams: Union[str, list[str], None] = None,
+        queryParams: Union[str, list[str], None] = None,
+        headers: Optional[dict] = None,
+        data: Any = None,
+        stream: bool = False,
+        **kwargs
+    ): 
+        if self == self.Post:
+            reqMethod = 'POST'
+        if self == self.Get:
+            reqMethod = 'GET'
+        return self._request(reqMethod, protocol, host, port, pathParams, queryParams, headers, data, stream, **kwargs)
+
+    def response(self,
+        protocol: str,
+        host: str,
+        port: int,
+        pathParams: Union[str, list[str], None] = None,
+        queryParams: Union[str, list[str], None] = None,
+        headers: Optional[dict] = None,
+        data: Any = None,
+        stream: bool = False,
+        decodeUnicode: bool = True,
+        **kwargs,
+    ):
+        if self == self.Post:
+            reqMethod = 'POST'
+        if self == self.Get:
+            reqMethod = 'GET'
+        with self._request(reqMethod, protocol, host, port, pathParams, queryParams, headers, data, stream, **kwargs) as response:
+            if response.status_code == 200:
+                for parsed_content, status_code in responseParser(response, stream, decodeUnicode):
+                    yield parsed_content, status_code
+            else:
+                yield "Request failed", response.status_code
+                return
 
 
 def simpleRequest(
@@ -117,29 +155,6 @@ def simpleRequest(
         encodedResponse = response.json()
         result = tuple([encodedResponse.get(key, {}) for key in keys]) if keys else encodedResponse
         return result
-
-
-def responseParser(
-    response: requests.Response,
-    stream: bool = False,
-    decodeUnicode: bool = False,
-    encoding: Optional[str] = None,
-    #isJSON: bool = False,
-):
-    if response.status_code != 200:
-        print("Warning: status code is not 200")
-    for chunk in response.iter_content(chunk_size = 1024 if stream else None, decode_unicode = False):
-        if chunk:
-            content = chunk.decode(encoding or getSystemEncoding(), errors = 'replace') if decodeUnicode and isinstance(chunk, bytes) else chunk
-            '''
-            try:
-                parsed_content = json_repair.loads(content) if isJSON else content
-                yield parsed_content, response.status_code
-            except:
-                print("Broken content:", content)
-                continue
-            '''
-            yield content, response.status_code
 
 #############################################################################################################
 
@@ -173,7 +188,7 @@ def _download_aria(
     )
 
 
-def downloadFile(
+def downloadFromURL(
     downloadURL: str,
     downloadDir: str,
     fileName: str,

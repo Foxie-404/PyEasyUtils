@@ -11,7 +11,7 @@ with open('./README.md', encoding = 'utf-8') as f:
 
 setup(
     name = "PyEasyUtils",
-    version = '0.3.5',
+    version = '0.3.6',
     description = 'A simple python util library',
     long_description = LongDescription,
     long_description_content_type = 'text/markdown',
@@ -33,7 +33,7 @@ setup(
         "loguru",
         "polars",
         "sqlalchemy",
-        "PyGithub"
+        "PyGithub",
     ],
     classifiers = [
         'Operating System :: OS Independent',

@@ -9,7 +9,7 @@ from typing import Union, Optional, List
 
 from .utils import toIterable
 from .path import normPath, getFileInfo
-from .text import getSystemEncoding
+from .text import getSystemEncoding, removeLF
 from .log import loggerManager
 
 #############################################################################################################
@@ -31,6 +31,7 @@ class asyncSubprocessManager:
         #asyncio.set_event_loop(asyncio.ProactorEventLoop()) if self.isWindowsSystem and isinstance(asyncio.get_event_loop(), asyncio.SelectorEventLoop) else None
 
     async def _create(self, arg: Union[List[str], str], merge: bool, env: Optional[os._Environ] = None):
+        limit = 1024 * 1024
         if self.shell == False:
             arg = shlex.split(arg) if isinstance(arg, str) else arg
             process = await asyncio.create_subprocess_exec(
@@ -40,6 +41,7 @@ class asyncSubprocessManager:
                 env = env or os.environ,
                 creationflags = subprocess.CREATE_NO_WINDOW if self.isWindowsSystem else 0,
                 text = False,
+                limit = limit,
             )
         else:
             arg = shlex.join(arg) if isinstance(arg, list) else arg
@@ -56,6 +58,7 @@ class asyncSubprocessManager:
                 env = env or os.environ,
                 creationflags = subprocess.CREATE_NO_WINDOW if self.isWindowsSystem else 0,
                 text = False,
+                limit = limit,
             ) if self.subprocesses.__len__() == 0 or not merge else self.subprocesses[-1]
             process.stdin.write(argBuffer)
             await process.stdin.drain()
@@ -85,7 +88,7 @@ class asyncSubprocessManager:
             yield line
             lineString = line.decode(self.encoding, errors = 'replace')
             sys.stdout.write(lineString) if showProgress and sys.stdout is not None else None
-            logger.info(lineString) if logger is not None else None
+            logger.info(removeLF(lineString, removeAll = False)) if logger is not None else None
             if process.returncode is not None:
                 break
 
